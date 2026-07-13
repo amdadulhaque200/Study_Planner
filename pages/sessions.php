@@ -10,29 +10,57 @@ $user = current_user();
 $userId = (int) $user['id'];
 $errors = [];
 
-// Handle Session Deletion
-if (isset($_POST['action']) && $_POST['action'] === 'delete') {
+
+
+// Handle Session Edit
+if (isset($_POST['action']) && $_POST['action'] === 'edit') {
     verify_csrf();
-    $sessionId = (int)($_POST['session_id'] ?? 0);
-    
-    // Ensure session belongs to user
+
+    $sessionId = (int) ($_POST['session_id'] ?? 0);
+    $subjectId = (int) ($_POST['subject_id'] ?? 0);
+    $sessionDate = trim($_POST['session_date'] ?? '');
+    $durationMin = (int) ($_POST['duration_min'] ?? 0);
+    $notes = trim($_POST['notes'] ?? '');
+
     $session = fetch_one('SELECT id FROM study_sessions WHERE id = ? AND user_id = ?', 'ii', [$sessionId, $userId]);
-    
-    if ($session) {
-        execute_statement('DELETE FROM study_sessions WHERE id = ?', 'i', [$sessionId]);
-        set_flash('success', 'Study session deleted successfully.');
+
+    if (!$session) {
+        $errors['general'] = 'Session not found.';
     } else {
-        set_flash('error', 'Session not found.');
+        if ($subjectId <= 0)
+            $errors['subject_id'] = 'Please select a subject.';
+        if (empty($sessionDate))
+            $errors['session_date'] = 'Date is required.';
+        if ($durationMin <= 0)
+            $errors['duration_min'] = 'Duration must be greater than 0.';
+
+        if ($subjectId > 0 && !fetch_one('SELECT id FROM subjects WHERE id = ? AND user_id = ?', 'ii', [$subjectId, $userId])) {
+            $errors['subject_id'] = 'Invalid subject selected.';
+        }
+
+        if (empty($errors)) {
+            $success = execute_statement(
+                'UPDATE study_sessions SET subject_id = ?, session_date = ?, duration_min = ?, notes = ? WHERE id = ? AND user_id = ?',
+                'isssii',
+                [$subjectId, $sessionDate, $durationMin, $notes, $sessionId, $userId]
+            );
+
+            if ($success) {
+                set_flash('success', 'Study session updated successfully.');
+                redirect('pages/sessions.php');
+            } else {
+                $errors['general'] = 'Failed to update study session.';
+            }
+        }
     }
-    redirect('pages/sessions.php');
 }
 
 if (isset($_POST['action']) && $_POST['action'] === 'add') {
     verify_csrf();
-    
-    $subjectId = (int)($_POST['subject_id'] ?? 0);
+
+    $subjectId = (int) ($_POST['subject_id'] ?? 0);
     $sessionDate = trim($_POST['session_date'] ?? '');
-    $durationMin = (int)($_POST['duration_min'] ?? 0);
+    $durationMin = (int) ($_POST['duration_min'] ?? 0);
     $notes = trim($_POST['notes'] ?? '');
 
     if ($subjectId <= 0) {
@@ -59,7 +87,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'add') {
             'iisss',
             [$userId, $subjectId, $sessionDate, $durationMin, $notes]
         );
-        
+
         if ($success) {
             set_flash('success', 'Study session logged successfully.');
             redirect('pages/sessions.php');
@@ -78,8 +106,8 @@ $sessions = fetch_all(
      FROM study_sessions ss 
      INNER JOIN subjects s ON ss.subject_id = s.id 
      WHERE ss.user_id = ? 
-     ORDER BY ss.session_date DESC, ss.id DESC LIMIT 50', 
-    'i', 
+     ORDER BY ss.session_date DESC, ss.id DESC LIMIT 50',
+    'i',
     [$userId]
 );
 
@@ -122,7 +150,8 @@ require_once __DIR__ . '/../includes/header.php';
                             <td colspan="5" class="text-center py-5 text-muted">
                                 <i class="bi bi-clock-history display-4 d-block mb-3"></i>
                                 No study sessions logged yet.<br>
-                                <button type="button" class="btn btn-link mt-2" data-bs-toggle="modal" data-bs-target="#addSessionModal">Log your first session</button>
+                                <button type="button" class="btn btn-link mt-2" data-bs-toggle="modal"
+                                    data-bs-target="#addSessionModal">Log your first session</button>
                             </td>
                         </tr>
                     <?php else: ?>
@@ -130,20 +159,26 @@ require_once __DIR__ . '/../includes/header.php';
                             <tr>
                                 <td class="ps-4"><?= date('M j, Y', strtotime($session['session_date'])) ?></td>
                                 <td>
-                                    <span class="badge rounded-pill" style="background-color: <?= h($session['subject_color']) ?>20; color: <?= h($session['subject_color']) ?>;">
+                                    <span class="badge rounded-pill"
+                                        style="background-color: <?= h($session['subject_color']) ?>20; color: <?= h($session['subject_color']) ?>;">
                                         <i class="bi bi-circle-fill small me-1"></i> <?= h($session['subject_name']) ?>
                                     </span>
                                 </td>
-                                <td><strong><?= h((string)$session['duration_min']) ?></strong> min</td>
-                                <td class="text-muted small text-truncate" style="max-width: 200px;" title="<?= h($session['notes']) ?>">
+                                <td><strong><?= h((string) $session['duration_min']) ?></strong> min</td>
+                                <td class="text-muted small text-truncate" style="max-width: 200px;"
+                                    title="<?= h($session['notes']) ?>">
                                     <?= h($session['notes'] ?: '-') ?>
                                 </td>
                                 <td class="text-end pe-4">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                        data-bs-target="#editSessionModal<?= $session['id'] ?>" title="Edit"><i
+                                            class="bi bi-pencil"></i></button>
                                     <form method="post" action="" class="d-inline" data-confirm="Delete this session?">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="session_id" value="<?= $session['id'] ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i
+                                                class="bi bi-trash"></i></button>
                                     </form>
                                 </td>
                             </tr>
@@ -154,6 +189,63 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </div>
+
+<?php if (!empty($sessions)): ?>
+    <?php foreach ($sessions as $session): ?>
+        <!-- Edit Session Modal -->
+        <div class="modal fade" id="editSessionModal<?= $session['id'] ?>" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog text-start">
+                <div class="modal-content">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold">Edit Study Session</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="post" action="" id="editSessionForm<?= $session['id'] ?>">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="edit">
+                            <input type="hidden" name="session_id" value="<?= $session['id'] ?>">
+
+                            <div class="mb-3">
+                                <label class="form-label">Subject <span class="text-danger">*</span></label>
+                                <select class="form-select" name="subject_id" required>
+                                    <option value="">Select a subject...</option>
+                                    <?php foreach ($subjects as $subject): ?>
+                                        <option value="<?= $subject['id'] ?>" <?= ($session['subject_id'] == $subject['id']) ? 'selected' : '' ?>>
+                                            <?= h($subject['name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="session_date"
+                                    value="<?= h($session['session_date']) ?>" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Duration (minutes) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="duration_min" min="1"
+                                    value="<?= h((string) $session['duration_min']) ?>" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Notes (Optional)</label>
+                                <textarea class="form-control" name="notes" rows="3"><?= h($session['notes']) ?></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" form="editSessionForm<?= $session['id'] ?>" class="btn btn-primary">Update
+                            Session</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
+<?php endif; ?>
 
 <!-- Add Session Modal -->
 <div class="modal fade" id="addSessionModal" tabindex="-1" aria-hidden="true">
@@ -167,10 +259,11 @@ require_once __DIR__ . '/../includes/header.php';
                 <form method="post" action="" id="addSessionForm">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="add">
-                    
+
                     <div class="mb-3">
                         <label for="subject_id" class="form-label">Subject <span class="text-danger">*</span></label>
-                        <select class="form-select <?= isset($errors['subject_id']) ? 'is-invalid' : '' ?>" id="subject_id" name="subject_id" required>
+                        <select class="form-select <?= isset($errors['subject_id']) ? 'is-invalid' : '' ?>"
+                            id="subject_id" name="subject_id" required>
                             <option value="">Select a subject...</option>
                             <?php foreach ($subjects as $subject): ?>
                                 <option value="<?= $subject['id'] ?>" <?= (isset($_POST['subject_id']) && $_POST['subject_id'] == $subject['id']) ? 'selected' : '' ?>>
@@ -182,18 +275,25 @@ require_once __DIR__ . '/../includes/header.php';
                             <div class="invalid-feedback"><?= h($errors['subject_id']) ?></div>
                         <?php endif; ?>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="session_date" class="form-label">Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control <?= isset($errors['session_date']) ? 'is-invalid' : '' ?>" id="session_date" name="session_date" value="<?= h($_POST['session_date'] ?? date('Y-m-d')) ?>" required>
+                        <input type="date"
+                            class="form-control <?= isset($errors['session_date']) ? 'is-invalid' : '' ?>"
+                            id="session_date" name="session_date"
+                            value="<?= h($_POST['session_date'] ?? date('Y-m-d')) ?>" required>
                         <?php if (isset($errors['session_date'])): ?>
                             <div class="invalid-feedback"><?= h($errors['session_date']) ?></div>
                         <?php endif; ?>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="duration_min" class="form-label">Duration (minutes) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control <?= isset($errors['duration_min']) ? 'is-invalid' : '' ?>" id="duration_min" name="duration_min" min="1" value="<?= h($_POST['duration_min'] ?? '60') ?>" required>
+                        <label for="duration_min" class="form-label">Duration (minutes) <span
+                                class="text-danger">*</span></label>
+                        <input type="number"
+                            class="form-control <?= isset($errors['duration_min']) ? 'is-invalid' : '' ?>"
+                            id="duration_min" name="duration_min" min="1"
+                            value="<?= h($_POST['duration_min'] ?? '60') ?>" required>
                         <?php if (isset($errors['duration_min'])): ?>
                             <div class="invalid-feedback"><?= h($errors['duration_min']) ?></div>
                         <?php endif; ?>
@@ -201,7 +301,8 @@ require_once __DIR__ . '/../includes/header.php';
 
                     <div class="mb-3">
                         <label for="notes" class="form-label">Notes (Optional)</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="What did you study?"><?= h($_POST['notes'] ?? '') ?></textarea>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"
+                            placeholder="What did you study?"><?= h($_POST['notes'] ?? '') ?></textarea>
                     </div>
                 </form>
             </div>
@@ -213,10 +314,10 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php 
+<?php
 // Show modal if there are errors from submitting
 if (isset($_POST['action']) && $_POST['action'] === 'add' && !empty($errors)) {
     echo "<script>document.addEventListener('DOMContentLoaded', function() { new bootstrap.Modal(document.getElementById('addSessionModal')).show(); });</script>";
 }
-require_once __DIR__ . '/../includes/footer.php'; 
+require_once __DIR__ . '/../includes/footer.php';
 ?>
