@@ -10,7 +10,22 @@ $user = current_user();
 $userId = (int) $user['id'];
 $errors = [];
 
-
+// Handle Session Deletion
+if (isset($_POST['action']) && $_POST['action'] === 'delete') {
+    verify_csrf();
+    $sessionId = (int)($_POST['session_id'] ?? 0);
+    
+    // Ensure session belongs to user
+    $session = fetch_one('SELECT id FROM study_sessions WHERE id = ? AND user_id = ?', 'ii', [$sessionId, $userId]);
+    
+    if ($session) {
+        execute_statement('DELETE FROM study_sessions WHERE id = ?', 'i', [$sessionId]);
+        set_flash('success', 'Study session deleted successfully.');
+    } else {
+        set_flash('error', 'Session not found.');
+    }
+    redirect('pages/sessions.php');
+}
 
 // Handle Session Edit
 if (isset($_POST['action']) && $_POST['action'] === 'edit') {
