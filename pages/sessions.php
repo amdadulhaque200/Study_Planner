@@ -1,4 +1,91 @@
+<?php
+declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
+
+require_login();
+
+$user = current_user();
+$userId = (int) $user['id'];
+$errors = [];
+
+// Handle Session Deletion
+if (isset($_POST['action']) && $_POST['action'] === 'delete') {
+    verify_csrf();
+    $sessionId = (int)($_POST['session_id'] ?? 0);
+    
+    // Ensure session belongs to user
+    $session = fetch_one('SELECT id FROM study_sessions WHERE id = ? AND user_id = ?', 'ii', [$sessionId, $userId]);
+    
+    if ($session) {
+        execute_statement('DELETE FROM study_sessions WHERE id = ?', 'i', [$sessionId]);
+        set_flash('success', 'Study session deleted successfully.');
+    } else {
+        set_flash('error', 'Session not found.');
+    }
+    redirect('pages/sessions.php');
+}
+
+if (isset($_POST['action']) && $_POST['action'] === 'add') {
+    verify_csrf();
+    
+    $subjectId = (int)($_POST['subject_id'] ?? 0);
+    $sessionDate = trim($_POST['session_date'] ?? '');
+    $durationMin = (int)($_POST['duration_min'] ?? 0);
+    $notes = trim($_POST['notes'] ?? '');
+
+    if ($subjectId <= 0) {
+        $errors['subject_id'] = 'Please select a subject.';
+    }
+    if (empty($sessionDate)) {
+        $errors['session_date'] = 'Date is required.';
+    }
+    if ($durationMin <= 0) {
+        $errors['duration_min'] = 'Duration must be greater than 0.';
+    }
+
+    // Verify subject belongs to user
+    if ($subjectId > 0) {
+        $subject = fetch_one('SELECT id FROM subjects WHERE id = ? AND user_id = ?', 'ii', [$subjectId, $userId]);
+        if (!$subject) {
+            $errors['subject_id'] = 'Invalid subject selected.';
+        }
+    }
+
+    if (empty($errors)) {
+        $success = execute_statement(
+            'INSERT INTO study_sessions (user_id, subject_id, session_date, duration_min, notes) VALUES (?, ?, ?, ?, ?)',
+            'iisss',
+            [$userId, $subjectId, $sessionDate, $durationMin, $notes]
+        );
+        
+        if ($success) {
+            set_flash('success', 'Study session logged successfully.');
+            redirect('pages/sessions.php');
+        } else {
+            $errors['general'] = 'Failed to log study session.';
+        }
+    }
+}
+
+// Fetch all subjects for the dropdown
+$subjects = fetch_all('SELECT id, name, color FROM subjects WHERE user_id = ? ORDER BY name ASC', 'i', [$userId]);
+
+// Fetch recent sessions
+$sessions = fetch_all(
+    'SELECT ss.*, s.name as subject_name, s.color as subject_color 
+     FROM study_sessions ss 
+     INNER JOIN subjects s ON ss.subject_id = s.id 
+     WHERE ss.user_id = ? 
+     ORDER BY ss.session_date DESC, ss.id DESC LIMIT 50', 
+    'i', 
+    [$userId]
+);
+
+$pageTitle = 'Study Sessions';
+require_once __DIR__ . '/../includes/header.php';
+?>
 
 <div class="row mb-4 align-items-center">
     <div class="col-md-6">
