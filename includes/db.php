@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 const APP_NAME = 'Study Planner';
-const BASE_URL = '/sp-4444/Study_Planner';
+const BASE_URL = '/sp-5/Study_Planner';
 const DB_HOST = 'localhost';
 const DB_USER = 'root';
 const DB_PASS = '';
