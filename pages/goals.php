@@ -1,4 +1,65 @@
+<?php
+declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/layout.php';
+
+require_login();
+
+$user = current_user();
+$userId = (int) $user['id'];
+$weekStart = (new DateTimeImmutable('monday this week'))->format('Y-m-d');
+$weekEnd = (new DateTimeImmutable('sunday this week'))->format('Y-m-d');
+$errors = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+
+    $subjectId = (int) ($_POST['subject_id'] ?? 0);
+    $goalHours = trim((string) ($_POST['goal_hours'] ?? ''));
+
+    if ($subjectId <= 0 || !fetch_one('SELECT id FROM subjects WHERE id = ? AND user_id = ? LIMIT 1', 'ii', [$subjectId, $userId])) {
+        $errors[] = 'Choose a valid subject.';
+    }
+
+    if (!is_numeric($goalHours) || (float) $goalHours < 0) {
+        $errors[] = 'Goal hours must be zero or greater.';
+    }
+
+    if (!$errors) {
+        $saved = execute_statement(
+            'INSERT INTO weekly_goals (user_id, subject_id, goal_hours, week_start) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE goal_hours = VALUES(goal_hours)',
+            'iids',
+            [$userId, $subjectId, (float) $goalHours, $weekStart]
+        );
+
+        if ($saved) {
+            set_flash('success', 'Weekly goal saved successfully.');
+            redirect('pages/goals.php');
+        }
+
+        $errors[] = 'Unable to save the goal.';
+    }
+}
+
+$subjectRows = fetch_all('SELECT id, name, color FROM subjects WHERE user_id = ? ORDER BY name ASC', 'i', [$userId]);
+$goalRows = fetch_all(
+    'SELECT s.id AS subject_id, s.name, s.color, COALESCE(wg.goal_hours, 0) AS goal_hours,
+            COALESCE(SUM(ss.duration_min), 0) AS minutes_this_week
+     FROM subjects s
+     LEFT JOIN weekly_goals wg ON wg.subject_id = s.id AND wg.user_id = s.user_id AND wg.week_start = ?
+     LEFT JOIN study_sessions ss ON ss.subject_id = s.id AND ss.user_id = s.user_id AND ss.session_date BETWEEN ? AND ?
+     WHERE s.user_id = ?
+     GROUP BY s.id, s.name, s.color, wg.goal_hours
+     ORDER BY s.name ASC',
+    'sssi',
+    [$weekStart, $weekStart, $weekEnd, $userId]
+);
+
+$pageTitle = 'Weekly Goals';
+require_once __DIR__ . '/../includes/header.php';
+?>
 <div class="container-fluid py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
