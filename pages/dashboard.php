@@ -59,48 +59,7 @@ $progressPercentage = $totalGoalMinutes > 0 ? min(100, (int) round(($progressMin
 $pageTitle = 'Dashboard';
 require_once __DIR__ . '/../includes/header.php';
 ?>
-<div class="container-fluid py-4">
-    <div class="row align-items-center g-3 mb-4">
-        <div class="col-lg-8">
-            <h1 class="display-title mb-2">Welcome, <?php echo h($user['username']); ?></h1>
-            <p class="text-muted-2 mb-0">Track your subjects, sessions, tasks, notes, and weekly progress from one place.</p>
-        </div>
-        <div class="col-lg-4 text-lg-end">
-            <a class="btn btn-primary me-2" href="<?php echo h(base_url('pages/sessions.php')); ?>">Log Session</a>
-            <a class="btn btn-outline-primary" href="<?php echo h(base_url('pages/tasks.php')); ?>">Add Task</a>
-        </div>
-    </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="bi bi-journal-bookmark"></i></div>
-                <div class="stat-value"><?php echo h((string) $totalSubjects); ?></div>
-                <div class="stat-label">Total Subjects</div>
-            </div>
-        </div>
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
-                <div class="stat-value"><?php echo h((string) $totalSessions); ?></div>
-                <div class="stat-label">Total Study Sessions</div>
-            </div>
-        </div>
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="bi bi-lightning-charge"></i></div>
-                <div class="stat-value"><?php echo h((string) $totalHours); ?></div>
-                <div class="stat-label">Total Study Hours</div>
-            </div>
-        </div>
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="bi bi-fire"></i></div>
-                <div class="stat-value"><?php echo h((string) $streak); ?></div>
-                <div class="stat-label">Study Streak</div>
-            </div>
-        </div>
-    </div>
 
     <div class="row g-3 mb-4">
         <div class="col-md-4">
