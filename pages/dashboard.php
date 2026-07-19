@@ -204,7 +204,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <a class="btn btn-outline-primary w-100 py-3" href="<?php echo h(base_url('pages/goals.php')); ?>"><i class="bi bi-bullseye me-2"></i>Goals</a>
                         </div>
                         <div class="col-6">
-                            <a class="btn btn-outline-primary w-100 py-3" href="<?php echo h(base_url('pages/reports.php')); ?>"><i class="bi bi-bar-chart me-2"></i>Reports</a>
+                            <a class="btn btn-outline-primary w-100 py-3" href="<?php echo h(base_url('pages/report.php')); ?>"><i class="bi bi-bar-chart me-2"></i>Reports</a>
                         </div>
                     </div>
                 </div>
