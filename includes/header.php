@@ -60,7 +60,7 @@ $pageTitle = $pageTitle ?? APP_NAME;
                 </a>
             </li>
             <li class="nav-item">
-                <a href="<?= base_url('pages/reports.php') ?>" class="nav-link text-white <?php echo strpos($_SERVER['REQUEST_URI'], 'reports.php') !== false ? 'active' : ''; ?>">
+                <a href="<?= base_url('pages/report.php') ?>" class="nav-link text-white <?php echo strpos($_SERVER['REQUEST_URI'], 'report.php') !== false ? 'active' : ''; ?>">
                     <i class="bi bi-bar-chart me-2"></i> Reports
                 </a>
             </li>
