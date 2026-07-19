@@ -1,3 +1,46 @@
+<?php
+//username: admin
+//password: Password123
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
+
+require_login();
+require_admin(); // Ensure the user has admin role
+
+$pageTitle = 'Admin Dashboard';
+require_once __DIR__ . '/../includes/header.php';
+
+// Handle user deletion
+if (isset($_POST['action']) && $_POST['action'] === 'delete_user') {
+    verify_csrf();
+    $deleteId = (int) ($_POST['user_id'] ?? 0);
+
+    if ($deleteId === (int) current_user()['id']) {
+        set_flash('error', 'You cannot delete yourself.');
+    } else {
+        $success = execute_statement('DELETE FROM users WHERE id = ?', 'i', [$deleteId]);
+        if ($success) {
+            set_flash('success', 'User deleted successfully.');
+        } else {
+            set_flash('error', 'Failed to delete user.');
+        }
+    }
+    redirect('admin/dashboard.php');
+}
+
+// Fetch stats
+$totalUsers = (int) (fetch_one('SELECT COUNT(*) as count FROM users')['count'] ?? 0);
+$totalSessions = (int) (fetch_one('SELECT COUNT(*) as count FROM study_sessions')['count'] ?? 0);
+$totalTasks = (int) (fetch_one('SELECT COUNT(*) as count FROM tasks')['count'] ?? 0);
+$totalNotes = (int) (fetch_one('SELECT COUNT(*) as count FROM notes')['count'] ?? 0);
+
+// Fetch all users
+$users = fetch_all('SELECT id, username, email, full_name, role, created_at, last_login FROM users ORDER BY created_at DESC');
+
+?>
 
 <div class="row mb-4">
     <div class="col-12">
