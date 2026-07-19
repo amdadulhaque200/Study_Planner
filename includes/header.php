@@ -3,6 +3,9 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 
 $pageTitle = $pageTitle ?? APP_NAME;
+
+// Cache current user to avoid repeated calls and potential null offsets
+$__current_user = current_user();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -69,7 +72,7 @@ $pageTitle = $pageTitle ?? APP_NAME;
                     <i class="bi bi-calendar3 me-2"></i> Calendar
                 </a>
             </li>
-            <?php if (current_user()['role'] === 'admin'): ?>
+            <?php if (isset($__current_user['role']) && $__current_user['role'] === 'admin'): ?>
             <li class="nav-item mt-3">
                 <span class="nav-link text-white-50 text-uppercase fs-7 fw-bold" style="font-size: 0.75rem;">Admin</span>
             </li>
@@ -83,7 +86,7 @@ $pageTitle = $pageTitle ?? APP_NAME;
         <div class="sidebar-footer p-3">
             <a href="<?= base_url('pages/profile.php') ?>" class="nav-link text-white d-flex align-items-center mb-2">
                 <i class="bi bi-person-circle fs-4 me-2"></i>
-                <span class="text-truncate"><?= h(current_user()['username']) ?></span>
+                <span class="text-truncate"><?= h($__current_user['username'] ?? '') ?></span>
             </a>
             <a href="<?= base_url('pages/logout.php') ?>" class="btn btn-sm btn-outline-light w-100">
                 <i class="bi bi-box-arrow-right"></i> Logout
